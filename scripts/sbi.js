@@ -5,6 +5,8 @@ import {
     sbiWindow
 } from "./sbiWindow.js";
 
+globalThis.sbiUtils = sbiUtils;
+
 Hooks.on("renderActorDirectory", (app, html, data) => {
     sbiUtils.log("Rendering sbi button");
 
@@ -17,4 +19,5 @@ Hooks.on("renderActorDirectory", (app, html, data) => {
 
         await sbiWindow.renderWindow();
     });
+
 });
