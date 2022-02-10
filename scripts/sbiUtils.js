@@ -39,6 +39,43 @@ export class sbiUtils {
         return obj;
     }
 
+    static async updateItemImgFromSRD(actor){
+
+      let pack = game.packs.get('dnd5e.monsterfeatures')
+      const monsterFeatures = (await pack.getIndex()).contents;
+      pack = game.packs.get('dnd5e.items');
+      const items = (await pack.getIndex()).contents;
+      const index = monsterFeatures.concat(items);
+
+      if (!actor) {
+        ui.notifications.error(`No actor provided`)
+        return;
+      }
+
+      const updates = actor.items.reduce( (acc, item) => {
+        const info = index.find( e => e.name === item.name )
+        if (!info){
+          /* try the fallback actor */
+          const fallbackItem = game.actors.getName("Fallback Item Images")?.items.getName(item.name);
+          if(fallbackItem) {
+            acc.updates.push({_id: item.id, img: fallbackItem.data.img});
+          }
+          acc.missing.push(item.name);
+        } else if (item.img !== 'icons/svg/item-bag.svg') {
+          acc.skipped.push(item.name); 
+        } else {
+          acc.updates.push({_id: item.id, img: info.img});
+        }
+
+        return acc;
+      },{updates: [], missing: [], skipped: []})
+
+      await actor.updateEmbeddedDocuments('Item', updates.updates);
+      console.debug('Missing Icons', ...updates.missing)
+      console.debug('Skipped Items', ...updates.skipped)
+
+    }
+
     static async getFromPackAsync(packName, itemName) {
         let result = null;
         const pack = game.packs.get(packName);

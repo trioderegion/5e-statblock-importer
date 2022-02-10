@@ -50,7 +50,7 @@ export class sbiParser {
       ];
 
       // Save off all the lines that preceed the first of the above sections.
-      const storedLines = [];
+      let storedLines = [];
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -88,6 +88,25 @@ export class sbiParser {
         }
       }
 
+      /* special parse remaining lines that include "bonus action" in its description */
+      const tempStoredLines = [];
+      for( const line of storedLines ) {
+        const trimmedLine = line.trim();
+
+        if (trimmedLine.toLowerCase().includes('bonus action') || trimmedLine.toLowerCase().includes('bonus ­action')){
+          if( sections['bonus actions'] ){
+            sections['bonus actions'].push(trimmedLine)
+          } else {
+            sections['bonus actions'] = [trimmedLine];
+          }
+        } else {
+          tempStoredLines.push(line);
+        }
+
+      }
+
+      storedLines = tempStoredLines;
+
       const actorName = storedLines.shift();
 
       const actor = await Actor.create({
@@ -118,26 +137,29 @@ export class sbiParser {
       await this.fixupSkillValues(actor, skillData);
 
       // Add the sections to the character actor.
-      Object.entries(sections).forEach(async ([key, value]) => {
+      for(const [key, value] of Object.entries(sections)) {
         const sectionHeader = sbiUtils.capitalizeAll(key);
 
-        if (key === "actions") {
-          await this.setActionsAsync(value, actor);
-        } else if (key === "reactions" || key === "bonus actions") {
-          await this.setAlternateActionAsync(value, key, actor);
+        if (key === "actions" || key === 'reactions' || key === 'bonus actions') {
+          await this.setActionsAsync(value, actor, key);
+        //} else if (key === "reactions" || key === "bonus actions") {
+        //  await this.setAlternateActionAsync(value, key, actor);
         } else {
           // Anything that isn't an action, reaction, or bonus action is a
           // "major" action, which are legendary actions and lair actions.
           await this.setMajorActionAsync(sectionHeader, value, actor);
         }
-      });
+      };
+
+      // Scan resulting actor for icons to replace from srd items
+      await sbiUtils.updateItemImgFromSRD(actor);
 
       // Open the sheet.
       actor.sheet.render(true);
     }
   }
 
-  static async setActionsAsync(lines, actor) {
+  static async setActionsAsync(lines, actor, key = "actions") {
     const actionDescriptions = this.getActionDescriptions(lines);
 
     for (const actionDescription of actionDescriptions) {
@@ -149,8 +171,14 @@ export class sbiParser {
       itemData.name = sbiUtils.capitalizeAll(name);
       itemData.type = "feat";
 
+      const activationType = {
+        'actions': 'action',
+        'bonus actions': 'bonus',
+        'reactions': 'reaction',
+      }[key]
+
       sbiUtils.assignToObject(itemData, "data.description.value", description);
-      sbiUtils.assignToObject(itemData, "data.activation.type", "action");
+      sbiUtils.assignToObject(itemData, "data.activation.type", activationType);
       sbiUtils.assignToObject(itemData, "data.activation.cost", 1);
 
       // The "Multiattack" action isn't a real action, so there's nothing more to add to it.
@@ -243,8 +271,8 @@ export class sbiParser {
       }
 
       sbiUtils.assignToObject(detailsData, "data.details.alignment", sbiUtils.capitalizeAll(matchObj.match.groups.alignment?.trim()));
-      sbiUtils.assignToObject(detailsData, "data.details.race", sbiUtils.capitalizeAll(matchObj.match.groups.race?.trim()));
-      sbiUtils.assignToObject(detailsData, "data.details.type", sbiUtils.capitalizeAll(matchObj.match.groups.type?.trim()));
+      sbiUtils.assignToObject(detailsData, "data.details.type.subtype", sbiUtils.capitalizeAll(matchObj.match.groups.race?.trim()));
+      sbiUtils.assignToObject(detailsData, "data.details.type.value", (matchObj.match.groups.type?.trim()));
 
       await actor.update(detailsData);
       sbiUtils.remove(lines, matchObj.line);
@@ -1029,6 +1057,9 @@ export class sbiParser {
     const match = this.#rechargeRegex.exec(text);
 
     if (match !== null) {
+      /* weapons cannot recharge */
+      if(itemData.type == 'weapon') itemData.type = 'feat';
+      itemData.name = itemData.name.replace(this.#rechargeRegex, '').trim();
       sbiUtils.assignToObject(itemData, "data.recharge.value", parseInt(match.groups.recharge));
       sbiUtils.assignToObject(itemData, "data.recharge.charged", true);
     }
