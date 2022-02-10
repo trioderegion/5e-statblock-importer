@@ -27,115 +27,115 @@ export class sbiParser {
   static #damageTypesRegex = /\bbludgeoning\b|\bpiercing\b|\bslashing\b|\bacid\b|\bcold\b|\bfire\b |\blightning\b|\bnecrotic\b|\bpoison\b|\bpsychic\b|\bradiant\b|\bthunder\b|/ig;
   static #sensesRegex = /(?<name>\bdarkvision\b|\bblindsight\b|\btremorsense\b|\btruesight\b) (?<modifier>\d+)/i;
   static #challengeRegex = /^challenge (?<cr>(½|[\d/]+)) \((?<xp>[\d,]+)/i;
-    static #spellCastingRegex = /\((?<slots>\d+) slot|(?<perday>\d+)\/day|spellcasting ability is (?<ability>\w+)|spell save dc (?<savedc>\d+)/ig;
-    static #spellLevelRegex = /(?<level>\d+)(.+)level spellcaster/i;
-    static #attackRegex = /(attack|damage): \+(?<tohit>\d+) to hit/i;
-    static #reachRegex = /reach (?<reach>\d+) ?(ft|'|’)/i;
-    static #rangeRegex = /range (?<near>\d+)\/(?<far>\d+) ?(ft|'|’)/i;
-    static #rechargeRegex = /\(recharge (?<recharge>\d+)([–|-]\d+)?\)/i;
-    static #savingThrowRegex = /dc (?<savedc>\d+) (?<saveability>\w+) saving throw/i;
-    static #versatileRegex = /\((?<damageroll>\d+d\d+( ?\+ ?\d+)?)\) (?<damagetype>\w+) damage if used with two hands/i;
-    static #targetRegex = /(?<range>\d+)?-(foot|ft?.|'|’) (?<shape>\w+)/i;
-    static #damageRollsQuery = "(?<={0})[\\s\\w\\d,]+\\((?<damageroll1>\\d+d\\d+)( \\+ (?<damagemod1>\\d+))?\\) (?<damagetype1>\\w+)(.+plus.+\\((?<damageroll2>\\d+d\\d+( \\+ (?<damagemod2>\\d+))?)\\) (?<damagetype2>\\w+))?";
+  static #spellCastingRegex = /\((?<slots>\d+) slot|(?<perday>\d+)\/day|spellcasting ability is (?<ability>\w+)|spell save dc (?<savedc>\d+)/ig;
+  static #spellLevelRegex = /(?<level>\d+)(.+)level spellcaster/i;
+  static #attackRegex = /(attack|damage): \+(?<tohit>\d+) to hit/i;
+  static #reachRegex = /reach (?<reach>\d+) ?(ft|'|’)/i;
+  static #rangeRegex = /range (?<near>\d+)\/(?<far>\d+) ?(ft|'|’)/i;
+  static #rechargeRegex = /\(recharge (?<recharge>\d+)([–|-]\d+)?\)/i;
+  static #savingThrowRegex = /dc (?<savedc>\d+) (?<saveability>\w+) saving throw/i;
+  static #versatileRegex = /\((?<damageroll>\d+d\d+( ?\+ ?\d+)?)\) (?<damagetype>\w+) damage if used with two hands/i;
+  static #targetRegex = /(?<range>\d+)?-(foot|ft?.|'|’) (?<shape>\w+)/i;
+  static #damageRollsQuery = "(?<={0})[\\s\\w\\d,]+\\((?<damageroll1>\\d+d\\d+)( \\+ (?<damagemod1>\\d+))?\\) (?<damagetype1>\\w+)(.+plus.+\\((?<damageroll2>\\d+d\\d+( \\+ (?<damagemod2>\\d+))?)\\) (?<damagetype2>\\w+))?";
 
-    static async parseInput(lines) {
-      if (lines.length) {
-        const sectionHeaders = [
-          "actions",
-          "bonus actions",
-          "reactions",
-          "legendary actions",
-          "lair actions",
-          "regional effects"
-        ];
+  static async parseInput(lines) {
+    if (lines.length) {
+      const sectionHeaders = [
+        "actions",
+        "bonus actions",
+        "reactions",
+        "legendary actions",
+        "lair actions",
+        "regional effects"
+      ];
 
-        // Save off all the lines that preceed the first of the above sections.
-        const storedLines = [];
+      // Save off all the lines that preceed the first of the above sections.
+      const storedLines = [];
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
 
-          if (this.isLineIgnored(line)) {
-            continue;
-          }
-
-          if (!sectionHeaders.includes(line.toLowerCase())) {
-            storedLines.push(line);
-          } else {
-            lines.splice(0, i);
-            break;
-          }
+        if (this.isLineIgnored(line)) {
+          continue;
         }
 
-        // Split out the sections into a dictionary.
-        const sections = {};
-        let header = null;
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-
-          if (this.isLineIgnored(line)) {
-            continue;
-          }
-
-          const sectionName = trimmedLine.toLowerCase();
-
-          if (sectionHeaders.includes(sectionName)) {
-            header = sectionName;
-            sections[header] = [];
-          } else if (sections[header]) {
-            sections[header].push(trimmedLine);
-          }
+        if (!sectionHeaders.includes(line.toLowerCase())) {
+          storedLines.push(line);
+        } else {
+          lines.splice(0, i);
+          break;
         }
-
-        const actorName = storedLines.shift();
-
-        const actor = await Actor.create({
-          name: sbiUtils.capitalizeAll(actorName),
-          type: "npc"
-        });
-
-        await this.setRacialDetailsAsync(storedLines, actor);
-        await this.setArmorAsync(storedLines, actor);
-        await this.setHealthAsync(storedLines, actor);
-        await this.setSpeedAsync(storedLines, actor);
-        await this.setInitiativeAsync(storedLines, actor);
-        await this.setAbilitiesAsync(storedLines, actor);
-        await this.setSavingThrowsAsync(storedLines, actor);
-        const skillData = await this.setSkillsAsync(storedLines, actor);
-        await this.setDamagesAsync(storedLines, actor, "resistances");
-        await this.setDamagesAsync(storedLines, actor, "immunities");
-        this.setConditionImmunities(storedLines, actor);
-        this.setDamageVulnerabilities(storedLines, actor);
-        await this.setSensesAsync(storedLines, actor);
-        await this.setLanguagesAsync(storedLines, actor);
-        await this.setChallengeAsync(storedLines, actor);
-        await this.setMannerAsync(storedLines, actor);
-        await this.setShadowAsync(storedLines, actor);
-        await this.setCorruptionAsync(storedLines, actor);
-        await this.setEquipmentAsync(storedLines, actor);
-        await this.setFeaturesAsync(storedLines, actor);
-        await this.fixupSkillValues(actor, skillData);
-
-        // Add the sections to the character actor.
-        Object.entries(sections).forEach(async ([key, value]) => {
-          const sectionHeader = sbiUtils.capitalizeAll(key);
-
-          if (key === "actions") {
-            await this.setActionsAsync(value, actor);
-          } else if (key === "reactions" || key === "bonus actions") {
-            await this.setAlternateActionAsync(value, key, actor);
-          } else {
-            // Anything that isn't an action, reaction, or bonus action is a
-            // "major" action, which are legendary actions and lair actions.
-            await this.setMajorActionAsync(sectionHeader, value, actor);
-          }
-        });
-
-        // Open the sheet.
-        actor.sheet.render(true);
       }
+
+      // Split out the sections into a dictionary.
+      const sections = {};
+      let header = null;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+
+        if (this.isLineIgnored(line)) {
+          continue;
+        }
+
+        const sectionName = trimmedLine.toLowerCase();
+
+        if (sectionHeaders.includes(sectionName)) {
+          header = sectionName;
+          sections[header] = [];
+        } else if (sections[header]) {
+          sections[header].push(trimmedLine);
+        }
+      }
+
+      const actorName = storedLines.shift();
+
+      const actor = await Actor.create({
+        name: sbiUtils.capitalizeAll(actorName),
+        type: "npc"
+      });
+
+      await this.setRacialDetailsAsync(storedLines, actor);
+      await this.setArmorAsync(storedLines, actor);
+      await this.setHealthAsync(storedLines, actor);
+      await this.setSpeedAsync(storedLines, actor);
+      await this.setInitiativeAsync(storedLines, actor);
+      await this.setAbilitiesAsync(storedLines, actor);
+      await this.setSavingThrowsAsync(storedLines, actor);
+      const skillData = await this.setSkillsAsync(storedLines, actor);
+      await this.setDamagesAsync(storedLines, actor, "resistances");
+      await this.setDamagesAsync(storedLines, actor, "immunities");
+      this.setConditionImmunities(storedLines, actor);
+      this.setDamageVulnerabilities(storedLines, actor);
+      await this.setSensesAsync(storedLines, actor);
+      await this.setLanguagesAsync(storedLines, actor);
+      await this.setChallengeAsync(storedLines, actor);
+      await this.setMannerAsync(storedLines, actor);
+      await this.setShadowAsync(storedLines, actor);
+      await this.setCorruptionAsync(storedLines, actor);
+      await this.setEquipmentAsync(storedLines, actor);
+      await this.setFeaturesAsync(storedLines, actor);
+      await this.fixupSkillValues(actor, skillData);
+
+      // Add the sections to the character actor.
+      Object.entries(sections).forEach(async ([key, value]) => {
+        const sectionHeader = sbiUtils.capitalizeAll(key);
+
+        if (key === "actions") {
+          await this.setActionsAsync(value, actor);
+        } else if (key === "reactions" || key === "bonus actions") {
+          await this.setAlternateActionAsync(value, key, actor);
+        } else {
+          // Anything that isn't an action, reaction, or bonus action is a
+          // "major" action, which are legendary actions and lair actions.
+          await this.setMajorActionAsync(sectionHeader, value, actor);
+        }
+      });
+
+      // Open the sheet.
+      actor.sheet.render(true);
     }
+  }
 
   static async setActionsAsync(lines, actor) {
     const actionDescriptions = this.getActionDescriptions(lines);
@@ -621,7 +621,7 @@ export class sbiParser {
       sbiUtils.remove(lines, line);
     }
   }
-  
+
   // Example: Manner reluctant and cynical
   static async setShadowAsync(lines, actor) {
     const startText = "shadow";
@@ -642,9 +642,9 @@ export class sbiParser {
 
     if(line) {
       const foundLine = line.slice(startText.length).trim();
-      
+
       const [perm, max] = foundLine.split('/');
-      
+
 
 
       sbiUtils.remove(lines, line);
