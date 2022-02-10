@@ -112,6 +112,7 @@ export class sbiParser {
         await this.setChallengeAsync(storedLines, actor);
         await this.setMannerAsync(storedLines, actor);
         await this.setShadowAsync(storedLines, actor);
+        await this.setCorruptionAsync(storedLines, actor);
         await this.setEquipmentAsync(storedLines, actor);
         await this.setFeaturesAsync(storedLines, actor);
         await this.fixupSkillValues(actor, skillData);
@@ -630,6 +631,22 @@ export class sbiParser {
       const foundLine = line.slice(startText.length).trim();
 
       await actor.update({[game.syb5e.CONFIG.PATHS.shadow]: foundLine});
+      sbiUtils.remove(lines, line);
+    }
+  }
+
+  // Example: Corrution: 0/4
+  static async setCorruptionAsync(lines, actor){
+    const startText = "corruption:"
+    const line = lines.find( line => line.toLowerCase().startsWith(startText));
+
+    if(line) {
+      const foundLine = line.slice(startText.length).trim();
+      
+      const [perm, max] = foundLine.split('/');
+      
+
+
       sbiUtils.remove(lines, line);
     }
   }
