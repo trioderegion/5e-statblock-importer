@@ -41,11 +41,15 @@ export class sbiUtils {
 
     static async updateItemImgFromSRD(actor){
 
-      let pack = game.packs.get('dnd5e.monsterfeatures')
+      let pack = game.packs.get('symbaroum5eplayersguide.ros-pg-items');
+      const sybItems = (await pack.getIndex()).contents;
+      pack = game.packs.get('symbaroum5eplayersguide.ros-pg-classes');
+      const classFeatures = (await pack.getIndex()).contents;
+      pack = game.packs.get('dnd5e.monsterfeatures')
       const monsterFeatures = (await pack.getIndex()).contents;
       pack = game.packs.get('dnd5e.items');
       const items = (await pack.getIndex()).contents;
-      const index = monsterFeatures.concat(items);
+      const index = sybItems.concat(classFeatures.concat(monsterFeatures.concat(items)));
 
       if (!actor) {
         ui.notifications.error(`No actor provided`)
@@ -53,13 +57,17 @@ export class sbiUtils {
       }
 
       const updates = actor.items.reduce( (acc, item) => {
+
+        /* try the override actor */
+        const fallbackItem = game.actors.getName("Override Item Images")?.items.getName(item.name);
+        if(fallbackItem) {
+          acc.updates.push({_id: item.id, img: fallbackItem.data.img});
+          return acc;
+        }
+
         const info = index.find( e => e.name === item.name )
         if (!info){
-          /* try the fallback actor */
-          const fallbackItem = game.actors.getName("Fallback Item Images")?.items.getName(item.name);
-          if(fallbackItem) {
-            acc.updates.push({_id: item.id, img: fallbackItem.data.img});
-          }
+          
           acc.missing.push(item.name);
         } else if (item.img !== 'icons/svg/item-bag.svg') {
           acc.skipped.push(item.name); 

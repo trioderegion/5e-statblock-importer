@@ -15,7 +15,7 @@ class ActionDescription {
 export class sbiParser {
   // For action titles, the first word has to start with a capital letter, followed by 0-3 other words, ignoring prepositions,
   // followed by a period. Support words with hyphens, non-capital first letter, and parentheses like '(Recharge 5-6)'.
-  static #actionTitleRegex = /^(([A-Z]\w+[ \-]?)(\s(of|and|the|from|in|at|on|with|to|by)\s)?(\w+ ?){0,3}(\([\w –\-\/]+\))?)\./;
+  static #actionTitleRegex = /^(([A-Z]\w+[ \-]?)(\s(of|and|the|from|in|at|on|with|to|by)\s)?(\w+ ?){0,3}(\([\w –\-\-\/]+\))?)\./;
   static #racialDetailsRegex = /^(?<size>\bfine\b|\bdiminutive\b|\btiny\b|\bsmall\b|\bmedium\b|\blarge\b|\bhuge\b|\bgargantuan\b|\bcolossal\b)\s(?<type>\w+)([,|\s]+\((?<race>[\w|\s]+)\))?([,|\s]+(?<alignment>[\w|\s]+))?/i;
   static #armorRegex = /^((armor|armour) class) (?<ac>\d+)( \((?<armortype>.+)\))?/i;
   static #healthRegex = /^(hit points) (?<hp>\d+) \((?<formula>\d+d\d+( ?[\+|\-|−|–] ?\d+)?)\)/i;
@@ -305,7 +305,8 @@ export class sbiParser {
           const armorNames = armorType.split(",").map(str => str.trim());
 
           for (const armorName of armorNames) {
-            const item = await sbiUtils.getFromPackAsync("dnd5e.items", armorName);
+            let item = await sbiUtils.getFromPackAsync("symbaroum5eplayersguide.ros-pg-items", armorName);
+            if (!item) item = await sbiUtils.getFromPackAsync("dnd5e.items", armorName);
 
             if (item) {
               item.data.equipped = true;
@@ -672,7 +673,7 @@ export class sbiParser {
       const foundLine = line.slice(startText.length).trim();
 
       const [perm, max] = foundLine.split('/');
-
+      //TODO do i even need to parse this?
 
 
       sbiUtils.remove(lines, line);
@@ -811,7 +812,7 @@ export class sbiParser {
         // 3rd level (3 slots): dispel magic, remove curse, tongues
         // 4th level (3 slots): banishment, greater invisibility
         // 5th level (1 slot): legend lore
-        await this.setSpellcastingAsync(description, itemData, actor, /(cantrips|1st|2nd|3rd|4th|5th|6th|7th|8th|9th) .+?:/ig);
+        await this.setSpellcastingAsync(description, itemData, actor, /(cantrips|1st|2nd|3rd|4th|5th|6th|7th|8th|9th).*?:/ig);
       } else if (lowerName.startsWith("legendary resistance")) {
         // Example:
         // Legendary Resistance (3/day)
@@ -978,7 +979,8 @@ export class sbiParser {
       // Some spell casting description bury the spell in the description, like Mehpits.
       // Example: The mephit can innately cast fog cloud, requiring no material components.
       // In that case search the description for every known spell.
-      const spell = await sbiUtils.tryGetFromPackAsync("dnd5e.spells", description);
+        let spell = await sbiUtils.getFromPackAsync("symbaroum5eplayersguide.ros-pg-spells", spellData.name);
+        if (!spell) spell = await sbiUtils.getFromPackAsync("dnd5e.spells", spellData.name);
 
       if (spell) {
         const perday = this.getGroupValue("perday", [...itemData.name.matchAll(this.#spellCastingRegex)]);
@@ -1002,7 +1004,8 @@ export class sbiParser {
     // Add spells to actor.
     if (spellDatas.length) {
       for (const spellData of spellDatas) {
-        const spell = await sbiUtils.getFromPackAsync("dnd5e.spells", spellData.name);
+        let spell = await sbiUtils.getFromPackAsync("symbaroum5eplayersguide.ros-pg-spells", spellData.name);
+        if (!spell) spell = await sbiUtils.getFromPackAsync("dnd5e.spells", spellData.name);
 
         if (spell) {
           if (spellData.type == "slots") {

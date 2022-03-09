@@ -45,7 +45,7 @@ export class sbiWindow extends Application {
 
             // TODO: let user define the folder that the actor goes into
 
-            const lines = $("#sbi-input").val().trim().split(/\n/g);
+            const lines = $("#sbi-input").val().replace(/\u00AD/g, '').trim().split(/\n/g);
 
             if (sbiConfig.options.debug) {
                 await sbiParser.parseInput(lines);
@@ -54,6 +54,7 @@ export class sbiWindow extends Application {
                     await sbiParser.parseInput(lines);
                 } catch (error) {
                     ui.notifications.error("5E STATBLOCK IMPORTER: An error has occured. Please report it using the module link so it can get fixed.")
+                    console.log(error);
                 }
             }
         });
