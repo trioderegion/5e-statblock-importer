@@ -1,5 +1,5 @@
-# 5e-statblock-importer
-A module for the FoundryVTT **DND5e - Fifth Edition System**. Easily import 5e monster and NPC statblocks into your game. As long as it's formatted using the standard WotC layout, it'll create a new actor with an NPC character sheet using those stats.
+# 5e-statblock-importer (Symbaroum RoS 5e Edition)
+A module for the FoundryVTT **DND5e - Fifth Edition System**. Easily import 5e monster and NPC statblocks into your game from the Ruins of Symbaroum 5e conversion. As long as it's formatted using the standard WotC layout, it'll create a new actor with an NPC character sheet using those stats.
 
 ## How to use
 Once installed, you'll see a new button at the bottom of the characters tab that looks like this...
